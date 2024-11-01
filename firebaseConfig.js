@@ -9,13 +9,13 @@ import { getDatabase } from "firebase/database";
 
 // Initialize Firebase
 const firebaseConfig = {
-  apiKey: 'AIzaSyD1B8Pu_4SPdtCNNfTUz47A9VaeNi6njps',
-  authDomain: 'class3-4b7b8.firebaseapp.com',
-  databaseURL: 'https://class3-4b7b8-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'class3-4b7b8',
-  storageBucket: 'class3-4b7b8.appspot.com',
-  messagingSenderId: "1042994950105",
-  appId: "1:1042994950105:web:ccdca4e0d06e26025c33c8"
+  apiKey: 'AIzaSyDcf4-GFmGK8t8pLLCNddpeocaZzSb-jj8',
+  authDomain: 'chatapp-a68fe.firebaseapp.com',
+  databaseURL: 'https://chatapp-a68fe-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'chatapp-a68fe',
+  storageBucket: 'chatapp-a68fe.firebasestorage.app',
+  messagingSenderId: "39810390424",
+  appId: "1:39810390424:web:21d780729af6000214f3ed"
 };
 
 const app = initializeApp(firebaseConfig);
