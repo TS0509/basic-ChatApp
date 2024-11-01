@@ -9,13 +9,13 @@ import { getDatabase } from "firebase/database";
 
 // Initialize Firebase
 const firebaseConfig = {
-  apiKey: 'AIzaSyDxhcLSBLsOvg_6B-HY0aXoAC-Yu5eAesE',
-  authDomain: 'nova-demo-13e33.firebaseapp.com',
-  databaseURL: 'https://nova-demo-13e33-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'nova-demo-13e33',
-  storageBucket: 'nova-demo-13e33.appspot.com',
-  messagingSenderId: "773007712209",
-  appId: "1:773007712209:web:ca2c68e7b39f2c9d748af0"
+  apiKey: 'AIzaSyD1B8Pu_4SPdtCNNfTUz47A9VaeNi6njps',
+  authDomain: 'class3-4b7b8.firebaseapp.com',
+  databaseURL: 'https://class3-4b7b8-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'class3-4b7b8',
+  storageBucket: 'class3-4b7b8.appspot.com',
+  messagingSenderId: "1042994950105",
+  appId: "1:1042994950105:web:ccdca4e0d06e26025c33c8"
 };
 
 const app = initializeApp(firebaseConfig);

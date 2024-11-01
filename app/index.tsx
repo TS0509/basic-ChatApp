@@ -1,14 +1,14 @@
 import _ from "lodash";
 import Checkbox from "expo-checkbox";
 import { View, Dimensions } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, Icon, List, Text } from "react-native-paper";
+import { Button, Icon, List, shadow, Text } from "react-native-paper";
 import { FlashList } from "@shopify/flash-list";
 import { db } from "../firebaseConfig";
 import { useEffect, useState } from "react";
-import { ref, onValue, update } from "firebase/database";
-import { Link } from "expo-router";
+import { ref, onValue, update, remove } from "firebase/database";
+import { Link, useRouter } from "expo-router";
+import ListIcon from "react-native-paper/lib/typescript/components/List/ListIcon";
 
 interface Task {
   id: string;
@@ -17,9 +17,9 @@ interface Task {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [taskList, setTaskList] = useState<Task[]>([]);
   const [doneTaskList, setDoneTaskList] = useState<Task[]>([]);
-
   const tasksRef = ref(db, "tasks");
 
   useEffect(() => {
@@ -41,7 +41,17 @@ export default function HomeScreen() {
     setTimeout(() => {
       update(taskRef, { completed: newValue });
     }, 500);
-    // update(taskRef, { completed: newValue });
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    const taskRef = ref(db, `tasks/${taskId}`);
+    remove(taskRef);
+    setTaskList((prevTaskList) =>
+      prevTaskList.filter((task) => task.id !== taskId)
+    );
+    setDoneTaskList((prevDoneTaskList) =>
+      prevDoneTaskList.filter((task) => task.id !== taskId)
+    );
   };
 
   return (
@@ -83,6 +93,12 @@ export default function HomeScreen() {
                   }
                 />
               )}
+              right={(props) => (
+                <Button
+                  style={{ margin: 5, height: 5 }}
+                  onPress={() => handleDeleteTask(item.id)}
+                  icon="delete" children={undefined} />
+              )}
             />
           )}
           estimatedItemSize={200}
@@ -109,7 +125,21 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <List.Item
               title={item.task}
-              left={(props) => <Icon source="check" size={20} color="green" />}
+              onPress={() =>
+                router.navigate({ pathname: "/edit", params: { id: item.id } })
+              }
+              left={(props) => (
+                <Checkbox
+                  onChange={() =>
+                    handleCheckboxChange(item.id, !item.completed)
+                  }
+                  style={{ margin: 5 }}
+                  value={item.completed}
+                  onValueChange={(newValue) =>
+                    handleCheckboxChange(item.id, newValue)
+                  }
+                />
+              )}
             />
           )}
           estimatedItemSize={200}
