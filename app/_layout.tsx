@@ -39,8 +39,6 @@ export default function RootLayout() {
             name="index"
             options={{ headerShown: false, title: "Home" }}
           />
-          <Stack.Screen name="add" options={{ title: "Add Task" }} />
-          <Stack.Screen name="+not-found" />
         </Stack>
       </ThemeProvider>
     </PaperProvider>

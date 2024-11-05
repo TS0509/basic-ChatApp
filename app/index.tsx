@@ -1,162 +1,119 @@
-import _ from "lodash";
-import * as Font from 'expo-font';
-import Checkbox from "expo-checkbox";
-import { View, TextInput, Button, StyleSheet, Dimensions } from "react-native";
+import React, { useState } from "react";
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, IconButton, MD3Colors } from "react-native-paper";
-import { FlashList } from "@shopify/flash-list";
-import { db } from "../firebaseConfig";
-import { useEffect, useState,useRef } from "react";
-import { ref, onValue, push } from "firebase/database";
+import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "expo-router";
-import { useForm, SubmitHandler, Controller } from "react-hook-form";
 
-interface Chat {
-  id: string;
-  content: string;
+interface LoginData {
+  username: string;
 }
 
-export default function HomeScreen() {
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<Chat>();
-
-  const router = useRouter();
-  const [chatList, setChatList] = useState<Chat[]>([]);
-  const chatsRef = ref(db, 'chats');
+export default function LoginScreen() {
+  const { control, handleSubmit, formState: { errors } } = useForm<LoginData>();
   const [loading, setLoading] = useState(false);
-  const flashListRef = useRef<FlashList<Chat>>(null);
-  
+  const router = useRouter();
 
-  const onSubmit: SubmitHandler<Chat> = async (data) => {
+  const onSubmit = async (data: LoginData) => {
     setLoading(true);
-    try {
-      await push(chatsRef, data);
-      console.log("Message sent:", data.content);
-      reset(); // Clear the input after sending
-    } catch (error) {
-      console.error("Error sending message: ", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    const unsubscribe = onValue(chatsRef, (snapshot) => {
-      const data = snapshot.val();
-      const chatData = data ? Object.values(data) : []; 
-      setChatList(chatData);
-      if (flashListRef.current) {
-        flashListRef.current.scrollToEnd({ animated: true });
-      }
+    if (data.username.trim() === "") {
+      Alert.alert("Username is required", "Please enter a valid username.");
+      setLoading(false);
+      return;
+    }
+
+    console.log("Logged in with username:", data.username);
+
+    // Navigate to /chat page and pass 'id' as a parameter
+    router.push({
+      pathname: "/chat",
+      params: { username: data.username }, // Pass 'username' as a parameter
     });
-    return () => unsubscribe();
-  }, []);
+
+    setLoading(false); // Reset loading state after navigation
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>WhatsChat</Text>
-      </View>
-      <FlashList 
-        ref={flashListRef}
-        data={chatList}
-        estimatedItemSize={56}
-        renderItem={({ item }) => (
-          <View style={styles.chatItem}>
-            <Text style={styles.chatText}>{item.content}</Text>
-          </View>
-        )}
-        ListEmptyComponent={
-          <View style={{ marginTop: 20 }}>
-            <Text style={{ color: "gray", margin:10``}}>
-              There are no messages to show...
-            </Text>
-          </View>
-        }
-      />
-      <View style={styles.inputContainer}>
+      <View style={styles.form}>
         <Controller
-          name="content"
           control={control}
-          rules={{ required: "Message is required" }} // Add validation rule
-          render={({ field: { onChange, onBlur, value } }) => (
+          name="username"
+          rules={{ required: "Username is required" }}
+          render={({ field: { onChange, value } }) => (
             <TextInput
-              style={styles.input}
-              placeholder="Type a message..."
-              onBlur={onBlur}
+              style={[styles.input, errors.username ? styles.errorInput : null]}
+              placeholder="Enter your username"
               onChangeText={onChange}
               value={value}
             />
           )}
         />
-        {errors.content && (
-          <Text style={{ color: "red" }}>{errors.content.message}</Text>
-        )}
-        <IconButton
-          icon="send"
-          iconColor="#000000"
-          size={30}
-          onPress={handleSubmit(onSubmit)} // Use handleSubmit here
-          disabled={loading} // Disable button while loading
-        />
+        {errors.username && <Text style={styles.error}>{errors.username.message}</Text>}
+
+        {/* Custom Button using TouchableOpacity */}
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSubmit(onSubmit)} // Trigger form submission
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Logging in..." : "Log In"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: "center",
+    padding: 16,
+    backgroundColor: "#f5f5f5", // Light background for contrast
   },
-  header: {
-    height: 60,
-    width: Dimensions.get("screen").width,
-    backgroundColor: "#0000FF",
-    justifyContent: 'center',
-  },
-  headerText: {
-    fontSize: 24,
-    margin: 10,
-    color: "#FFFFFF",
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#ccc",
+  form: {
+    marginBottom: 16,
+    alignItems: "center", // Center the form contents
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 25,
+    backgroundColor: "#caabdb",
+    padding: 26,
   },
   input: {
-    flex: 1,
-    height: 40,
-    borderColor: '#ccc',
+    height: 50,
+    width: "80%", // Limit width of input to be more centered
+    borderColor: "#ccc",
     borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    marginRight: 10,
+    borderRadius: 25, // Make the input round
+    paddingLeft: 16,
+    marginBottom: 20,
+    backgroundColor: "#fff", // White background for input field
+    fontSize: 16,
   },
-  chatItem:{
-    padding:10,
-    marginVertical: 5,
-    marginHorizontal: 10,
-    borderRadius: 15,
-    backgroundColor: '#e1ffc7',
-    alignSelf: "flex-start",
-    maxWidth: "80%",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height:1},
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2,
-
+  errorInput: {
+    borderColor: "red", // If there's an error, show red border
   },
-  chatText:{
-    fontSize: 23,
-  }
+  button: {
+    width: "80%", // Same width as the input field
+    height: 50,
+    borderRadius: 25, // Rounded button
+    backgroundColor: "#663399", // Blue background for the button
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  buttonDisabled: {
+    backgroundColor: "#b0c4de", // Lighter color when the button is disabled
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  error: {
+    color: "red",
+    fontSize: 12,
+    marginBottom: 12,
+  },
 });
