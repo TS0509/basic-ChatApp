@@ -35,9 +35,17 @@ export default function RootLayout() {
     <PaperProvider>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
-          <Stack.Screen
+        <Stack.Screen
             name="index"
-            options={{ headerShown: false, title: "Home" }}
+            options={{ headerShown: false, title: "Login" }}
+          />
+          <Stack.Screen
+            name="signup"
+            options={{ headerShown: false, title: "Signup" }}
+          />
+          <Stack.Screen
+            name="chat"
+            options={{ headerShown: false, title: "Chat" }}
           />
         </Stack>
       </ThemeProvider>

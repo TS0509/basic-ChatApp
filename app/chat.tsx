@@ -1,12 +1,16 @@
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { db } from "../firebaseConfig";
 import { ref, onValue, push } from "firebase/database";
-import { useState, useEffect, useRef } from "react";
-import { SafeAreaView, View, TextInput, Text, StyleSheet, Dimensions } from "react-native";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TextInput, Text, StyleSheet, Dimensions } from "react-native";
 import { IconButton } from "react-native-paper";
 import { FlashList } from "@shopify/flash-list";
 import { useRoute } from "@react-navigation/native";
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebaseConfig';
+
 
 // Define the Chat interface with username and timestamp
 interface Chat {
@@ -17,16 +21,23 @@ interface Chat {
 
 export default function HomeScreen() {
   const { control, handleSubmit, reset, formState: { errors } } = useForm<Chat>();
-  const router = useRouter();
-  const route = useRoute();  // Use `useRoute` to access the route parameters
+  const router = useRouter();  // Used for navigating within expo-router
+  const route = useRoute();  // Used for accessing the route parameters
+  const navigation = useNavigation();
 
   const [chatList, setChatList] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
   const flashListRef = useRef<FlashList<Chat>>(null);
   const chatsRef = ref(db, 'chats');
   
+  const [isListReady, setIsListReady] = useState(false);  // Flag to track if the list is mounted
+
   // Access username from route params
-  const { username } = route.params as { username: string };  // Cast route params to get 'username'
+  const { username } = route.params as { username?: string };
+  if (!username) {
+    console.error("Username not found in route params.");
+    // Optionally handle navigation to an error screen or default state
+  }
 
   const onSubmit = async (data: Chat) => {
     setLoading(true);
@@ -45,19 +56,58 @@ export default function HomeScreen() {
   useEffect(() => {
     const unsubscribe = onValue(chatsRef, (snapshot) => {
       const data = snapshot.val();
-      // Cast to Chat[] to ensure the data is properly typed
-      const chatData: Chat[] = data ? Object.values(data).sort((a, b) => a.timestamp - b.timestamp) : [];
-      setChatList(chatData);
-      if (flashListRef.current) {
-        flashListRef.current.scrollToEnd({ animated: true });
+      if (data) {
+        const chatData: Chat[] = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+        setChatList(chatData);
+      } else {
+        console.log("No data available.");
+        setChatList([]);
       }
     });
     return () => unsubscribe();
   }, []);
 
+  // Scroll to the bottom after chatList has been updated, only if the list is ready
+  useLayoutEffect(() => {
+    if (isListReady && flashListRef.current) {
+      flashListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [chatList, isListReady]);
+
+  // onLayout callback to confirm list is mounted
+  const onListLayout = () => {
+    if (!isListReady) {
+      setIsListReady(true);  // Set flag to true after list is mounted and measured
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      console.log("User logged out successfully.");
+      // Optionally navigate to the login screen
+      router.push('/');  // Navigate to login screen after logout
+    } catch (error) {
+      console.error("Error logging out: ", error);
+    }
+  };
+
+  // Handle the back button press
+  const handleBackPress = () => {
+    logout(); // Logout before going back
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        {/* Back Button with Logout */}
+        <IconButton
+          icon="arrow-left"
+          iconColor="white"
+          onPress={handleBackPress}  // Trigger the logout on back button press
+          style={styles.backButton}
+        />
         <Text style={styles.headerText}>WhatsChat</Text>
       </View>
 
@@ -67,10 +117,7 @@ export default function HomeScreen() {
         estimatedItemSize={56}
         renderItem={({ item }) => (
           <View 
-            style={[
-              styles.chatItem, 
-              item.username === username ? styles.selfChat : styles.otherChat
-            ]}
+            style={[styles.chatItem, item.username === username ? styles.selfChat : styles.otherChat]}
           >
             {/* Display the username if it's not the current user */}
             {item.username !== username && (
@@ -84,6 +131,7 @@ export default function HomeScreen() {
             <Text style={{ color: "gray", margin: 10 }}>There are no messages to show...</Text>
           </View>
         }
+        onLayout={onListLayout}  // Confirm the list is mounted and ready
       />
 
       <View style={styles.inputContainer}>
@@ -106,6 +154,7 @@ export default function HomeScreen() {
         <IconButton
           icon="send"
           size={30}
+          iconColor="white"
           onPress={handleSubmit(onSubmit)} 
           disabled={loading} 
           style={styles.sendButton}
@@ -124,13 +173,24 @@ const styles = StyleSheet.create({
     height: 60,
     width: Dimensions.get("screen").width,
     backgroundColor: "#0000FF",
-    justifyContent: 'center',
+    flexDirection: 'row',  // Align items horizontally
+    alignItems: 'center',  // Vertically center the items
+    paddingHorizontal: 10,  // Add some horizontal padding for spacing
+    position: 'relative',  // Required to position the back button
   },
+  
   headerText: {
     fontSize: 24,
     margin: 10,
     color: "#FFFFFF",
+    flex: 1,  // Take up remaining space
+    textAlign: 'left',  // Center the text horizontally
   },
+  
+  backButton: {
+    paddingRight: 20,  // Position the button absolutely
+  },
+  
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,54 +1,39 @@
 import React, { useState } from "react";
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
-import { useRouter } from "expo-router";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from "react-native";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { app } from "../firebaseConfig"; // Adjust the import according to your firebase config file path
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
-interface LoginData {
+interface Signup {
   email: string;
   password: string;
 }
 
-export default function LoginScreen() {
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<LoginData>();
+export default function SignupScreen() {
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<Signup>();
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
-  const onSubmit = async (data: LoginData) => {
+  const onSubmit = async (data: Signup) => {
     const auth = getAuth(app);
     setLoading(true);
-
-    if (data.email.trim() === "" || data.password.trim() === "") {
-      Alert.alert("Error", "Both email and password are required.");
-      setLoading(false);
-      return;
-    }
+    
 
     try {
-      // Use Firebase to authenticate the user with email and password
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-
-      // Show success message
-      Alert.alert("Success", "Logged in successfully!");
-
-      // Clear the form fields after successful login
+      // Use Firebase to create a user with email and password
+      await createUserWithEmailAndPassword(auth, data.email, data.password);
+      Alert.alert("Success", "Account created successfully!");
       reset();
-
-      // Navigate to /chat page and pass 'username' as a parameter
-      router.push({
-        pathname: "/chat",
-        params: { username: data.email }, // Pass 'username' as a parameter
-      });
+      router.push("/");
     } catch (error: any) {
       // Firebase error handling
-      if (error.code === "auth/user-not-found") {
-        Alert.alert("Error", "No account found with this email.");
-      } else if (error.code === "auth/wrong-password") {
-        Alert.alert("Error", "Incorrect password.");
-      } else if (error.code === "auth/invalid-email") {
+      if (error.code === 'auth/email-already-in-use') {
+        Alert.alert("Error", "This email is already in use.");
+      } else if (error.code === 'auth/invalid-email') {
         Alert.alert("Error", "Invalid email format.");
+      } else if (error.code === 'auth/weak-password') {
+        Alert.alert("Error", "Password should be at least 6 characters.");
       } else {
         Alert.alert("Error", "Something went wrong. Please try again.");
       }
@@ -63,6 +48,8 @@ export default function LoginScreen() {
         <Text style={styles.whatchatText}>WhatChat</Text>
       </View>
       <View style={styles.form}>
+        <Text style={{ color: "#000000", fontSize: 20, marginBottom: 20 }}>Sign Up</Text>
+
         <Controller
           control={control}
           name="email"
@@ -73,10 +60,11 @@ export default function LoginScreen() {
               message: "Invalid email address",
             },
           }}
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.email && styles.errorInput]}
-              placeholder="Enter your email"
+              placeholder="Email"
+              onBlur={onBlur}
               onChangeText={onChange}
               value={value}
             />
@@ -94,11 +82,12 @@ export default function LoginScreen() {
               message: "Password must be at least 6 characters long",
             },
           }}
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.password && styles.errorInput]}
-              placeholder="Enter your password"
+              placeholder="Password"
               secureTextEntry
+              onBlur={onBlur}
               onChangeText={onChange}
               value={value}
             />
@@ -108,16 +97,11 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleSubmit(onSubmit)} // Trigger form submission
+          onPress={handleSubmit(onSubmit)}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>
-            {loading ? "Logging in..." : "Log In"}
-          </Text>
+          <Text style={styles.buttonText}>{loading ? "Loading..." : "Sign Up"}</Text>
         </TouchableOpacity>
-        <View style={{ alignSelf: 'flex-start', marginTop: 20 }}>
-          <Text style={styles.signupText} onPress={() => router.push("/signup")}>Don't have an account? Sign up</Text>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -173,12 +157,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 12,
   },
-  signupText: {
-    color: 'blue',
-    paddingTop: 20,
-    textAlign: 'left',
-  },
-    whatchatText: {
+  whatchatText: {
     color: 'blue',
     fontSize: 40,
     textAlign: "center",
