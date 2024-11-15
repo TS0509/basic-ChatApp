@@ -1,16 +1,15 @@
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { db } from "../firebaseConfig";
 import { ref, onValue, push } from "firebase/database";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { View, TextInput, Text, StyleSheet, Dimensions } from "react-native";
 import { IconButton } from "react-native-paper";
 import { FlashList } from "@shopify/flash-list";
-import { useRoute } from "@react-navigation/native";
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
-
+// import { `useRoute` } from "@react-navigation/native";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebaseConfig";
 
 // Define the Chat interface with username and timestamp
 interface Chat {
@@ -19,21 +18,30 @@ interface Chat {
   timestamp: number;
 }
 
-export default function HomeScreen() {
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<Chat>();
-  const router = useRouter();  // Used for navigating within expo-router
-  const route = useRoute();  // Used for accessing the route parameters
+export default function HomeScreen(props: any) {
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<Chat>();
+  const router = useRouter(); // Used for navigating within expo-router
+  // console.log(router);
+
+  // const route = useRoute();  // Used for accessing the route parameters
   const navigation = useNavigation();
+
+  const params = useLocalSearchParams();
 
   const [chatList, setChatList] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
   const flashListRef = useRef<FlashList<Chat>>(null);
-  const chatsRef = ref(db, 'chats');
-  
-  const [isListReady, setIsListReady] = useState(false);  // Flag to track if the list is mounted
+  const chatsRef = ref(db, "chats");
 
-  // Access username from route params
-  const { username } = route.params as { username?: string };
+  const [isListReady, setIsListReady] = useState(false); // Flag to track if the list is mounted
+
+  const { username } = params;
+
   if (!username) {
     console.error("Username not found in route params.");
     // Optionally handle navigation to an error screen or default state
@@ -57,7 +65,9 @@ export default function HomeScreen() {
     const unsubscribe = onValue(chatsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const chatData: Chat[] = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+        const chatData: Chat[] = Object.values(data).sort(
+          (a, b) => a.timestamp - b.timestamp
+        );
         setChatList(chatData);
       } else {
         console.log("No data available.");
@@ -67,17 +77,18 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Scroll to the bottom after chatList has been updated, only if the list is ready
   useLayoutEffect(() => {
     if (isListReady && flashListRef.current) {
-      flashListRef.current.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        flashListRef?.current?.scrollToEnd({ animated: true });
+      }, 1000);
     }
   }, [chatList, isListReady]);
 
   // onLayout callback to confirm list is mounted
   const onListLayout = () => {
     if (!isListReady) {
-      setIsListReady(true);  // Set flag to true after list is mounted and measured
+      setIsListReady(true); // Set flag to true after list is mounted and measured
     }
   };
 
@@ -87,7 +98,7 @@ export default function HomeScreen() {
       await signOut(auth);
       console.log("User logged out successfully.");
       // Optionally navigate to the login screen
-      router.push('/');  // Navigate to login screen after logout
+      router.push("/"); // Navigate to login screen after logout
     } catch (error) {
       console.error("Error logging out: ", error);
     }
@@ -105,19 +116,22 @@ export default function HomeScreen() {
         <IconButton
           icon="arrow-left"
           iconColor="white"
-          onPress={handleBackPress}  // Trigger the logout on back button press
+          onPress={handleBackPress} // Trigger the logout on back button press
           style={styles.backButton}
         />
         <Text style={styles.headerText}>WhatsChat</Text>
       </View>
 
-      <FlashList 
+      <FlashList
         ref={flashListRef}
         data={chatList}
         estimatedItemSize={56}
         renderItem={({ item }) => (
-          <View 
-            style={[styles.chatItem, item.username === username ? styles.selfChat : styles.otherChat]}
+          <View
+            style={[
+              styles.chatItem,
+              item.username === username ? styles.selfChat : styles.otherChat,
+            ]}
           >
             {/* Display the username if it's not the current user */}
             {item.username !== username && (
@@ -128,10 +142,12 @@ export default function HomeScreen() {
         )}
         ListEmptyComponent={
           <View style={{ marginTop: 20 }}>
-            <Text style={{ color: "gray", margin: 10 }}>There are no messages to show...</Text>
+            <Text style={{ color: "gray", margin: 10 }}>
+              There are no messages to show...
+            </Text>
           </View>
         }
-        onLayout={onListLayout}  // Confirm the list is mounted and ready
+        onLayout={onListLayout} // Confirm the list is mounted and ready
       />
 
       <View style={styles.inputContainer}>
@@ -149,14 +165,16 @@ export default function HomeScreen() {
             />
           )}
         />
-        {errors.content && <Text style={styles.error}>{errors.content.message}</Text>}
+        {errors.content && (
+          <Text style={styles.error}>{errors.content.message}</Text>
+        )}
 
         <IconButton
           icon="send"
           size={30}
           iconColor="white"
-          onPress={handleSubmit(onSubmit)} 
-          disabled={loading} 
+          onPress={handleSubmit(onSubmit)}
+          disabled={loading}
           style={styles.sendButton}
         />
       </View>
@@ -167,33 +185,33 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   header: {
     height: 60,
     width: Dimensions.get("screen").width,
     backgroundColor: "#0000FF",
-    flexDirection: 'row',  // Align items horizontally
-    alignItems: 'center',  // Vertically center the items
-    paddingHorizontal: 10,  // Add some horizontal padding for spacing
-    position: 'relative',  // Required to position the back button
+    flexDirection: "row", // Align items horizontally
+    alignItems: "center", // Vertically center the items
+    paddingHorizontal: 10, // Add some horizontal padding for spacing
+    position: "relative", // Required to position the back button
   },
-  
+
   headerText: {
     fontSize: 24,
     margin: 10,
     color: "#FFFFFF",
-    flex: 1,  // Take up remaining space
-    textAlign: 'left',  // Center the text horizontally
+    flex: 1, // Take up remaining space
+    textAlign: "left", // Center the text horizontally
   },
-  
+
   backButton: {
-    paddingRight: 20,  // Position the button absolutely
+    paddingRight: 20, // Position the button absolutely
   },
-  
+
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 10,
     borderTopWidth: 1,
     borderTopColor: "#ccc",
@@ -201,7 +219,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 40,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 10,
@@ -223,12 +241,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   selfChat: {
-    backgroundColor: "#d1f7d1", 
-    alignSelf: "flex-start",  
+    backgroundColor: "#d1f7d1",
+    alignSelf: "flex-start",
   },
   otherChat: {
-    backgroundColor: "#e1ffc7", 
-    alignSelf: "flex-end", 
+    backgroundColor: "#e1ffc7",
+    alignSelf: "flex-end",
   },
   username: {
     fontWeight: "bold",
@@ -236,8 +254,8 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     fontSize: 14,
     marginTop: 5,
-    backgroundColor: "transparent", 
-    borderRadius: 0, 
+    backgroundColor: "transparent",
+    borderRadius: 0,
   },
   chatText: {
     fontSize: 16,

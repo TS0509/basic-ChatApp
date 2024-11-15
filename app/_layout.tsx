@@ -9,6 +9,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "react-native-reanimated";
 import { PaperProvider } from "react-native-paper";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useState } from "react";
+import { useRouter } from "expo-router";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 
@@ -20,6 +23,25 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  const auth = getAuth();
+  const router = useRouter();
+  const [user, setUser] = useState({});
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("#############user", user);
+      if (user) {
+        setUser(user);
+        router.push("/chat");
+      } else {
+        setUser({});
+        router.push("/");
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (loaded) {
@@ -35,7 +57,7 @@ export default function RootLayout() {
     <PaperProvider>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
-        <Stack.Screen
+          <Stack.Screen
             name="index"
             options={{ headerShown: false, title: "Login" }}
           />
