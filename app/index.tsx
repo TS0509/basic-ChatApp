@@ -37,10 +37,7 @@ export default function LoginScreen() {
       reset();
 
       // Navigate to /chat page and pass 'username' as a parameter
-      router.push({
-        pathname: "/chat",
-        params: { username: data.email }, // Pass 'username' as a parameter
-      });
+      router.push("/chat");
     } catch (error: any) {
       // Firebase error handling
       if (error.code === "auth/user-not-found") {

@@ -14,7 +14,7 @@ import { auth } from "../firebaseConfig";
 // Define the Chat interface with username and timestamp
 interface Chat {
   content: string;
-  username: string;
+  email: string;
   timestamp: number;
 }
 
@@ -31,7 +31,6 @@ export default function HomeScreen(props: any) {
   // const route = useRoute();  // Used for accessing the route parameters
   const navigation = useNavigation();
 
-  const params = useLocalSearchParams();
 
   const [chatList, setChatList] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,18 +39,14 @@ export default function HomeScreen(props: any) {
 
   const [isListReady, setIsListReady] = useState(false); // Flag to track if the list is mounted
 
-  const { username } = params;
-
-  if (!username) {
-    console.error("Username not found in route params.");
-    // Optionally handle navigation to an error screen or default state
-  }
-
+  const currentUser = auth.currentUser; // Get the current user from Firebase Auth
+  const email = currentUser?.email; // Get the email from the current user
+  
   const onSubmit = async (data: Chat) => {
     setLoading(true);
     try {
       // Push the message along with the username and timestamp
-      await push(chatsRef, { ...data, username, timestamp: Date.now() });
+      await push(chatsRef, { ...data, email, timestamp: Date.now() });
       console.log("Message sent:", data.content);
       reset(); // Clear the input after sending
     } catch (error) {
@@ -68,7 +63,7 @@ export default function HomeScreen(props: any) {
         const chatData: Chat[] = Object.values(data).sort(
           (a, b) => a.timestamp - b.timestamp
         );
-        setChatList(chatData);
+        setChatList(chatData || [{}]);
       } else {
         console.log("No data available.");
         setChatList([]);
@@ -130,14 +125,14 @@ export default function HomeScreen(props: any) {
           <View
             style={[
               styles.chatItem,
-              item.username === username ? styles.selfChat : styles.otherChat,
+              item?.email === email ? styles.selfChat : styles.otherChat,
             ]}
           >
             {/* Display the username if it's not the current user */}
-            {item.username !== username && (
-              <Text style={styles.username}>{item.username}</Text>
+            {item?.email !== email && (
+              <Text style={styles.username}>{item?.email}</Text>
             )}
-            <Text style={styles.chatText}>{item.content}</Text>
+            <Text style={styles.chatText}>{item?.content}</Text>
           </View>
         )}
         ListEmptyComponent={
