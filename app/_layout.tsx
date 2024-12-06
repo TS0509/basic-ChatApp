@@ -62,12 +62,16 @@ export default function RootLayout() {
             options={{ headerShown: false, title: "Login" }}
           />
           <Stack.Screen
+            name="chat"
+            options={{ headerShown: false, title: "Homescreen" }}
+          />
+          <Stack.Screen
             name="signup"
             options={{ headerShown: false, title: "Signup" }}
           />
-          <Stack.Screen
-            name="chat"
-            options={{ headerShown: false, title: "Chat" }}
+           <Stack.Screen
+            name="profile"
+            options={{ headerShown: false, title: "Profile" }}
           />
         </Stack>
       </ThemeProvider>

@@ -180,5 +180,5 @@ const styles = StyleSheet.create({
     fontSize: 40,
     textAlign: "center",
     paddingBottom: 90,
-  }
+  },
 });

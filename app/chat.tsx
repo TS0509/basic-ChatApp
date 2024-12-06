@@ -1,20 +1,20 @@
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { db } from "../firebaseConfig";
-import { ref, onValue, push } from "firebase/database";
+import { ref, onValue, push, get } from "firebase/database";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, TextInput, Text, StyleSheet, Dimensions } from "react-native";
-import { IconButton } from "react-native-paper";
+import { View, TextInput, Text, StyleSheet, Dimensions, Platform, Image } from "react-native";
+import { Appbar, Icon, IconButton, Menu } from "react-native-paper";
 import { FlashList } from "@shopify/flash-list";
-// import { `useRoute` } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebaseConfig";
+import React from "react";
 
-// Define the Chat interface with username and timestamp
+// Define the Chat interface with userID and timestamp
 interface Chat {
   content: string;
-  email: string;
+  uid: string;
   timestamp: number;
 }
 
@@ -25,12 +25,16 @@ export default function HomeScreen(props: any) {
     reset,
     formState: { errors },
   } = useForm<Chat>();
-  const router = useRouter(); // Used for navigating within expo-router
-  // console.log(router);
-
-  // const route = useRoute();  // Used for accessing the route parameters
+  const router = useRouter();
   const navigation = useNavigation();
 
+  const [menuVisible, setMenuVisible] = React.useState(false);
+  const openMenu = () => setMenuVisible(true);
+  const closeMenu = () => setMenuVisible(false);
+
+  const [visible, setVisible] = React.useState(false);
+  const showDialog = () => setVisible(true);
+  const hideDialog = () => setVisible(false);
 
   const [chatList, setChatList] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,15 +42,17 @@ export default function HomeScreen(props: any) {
   const chatsRef = ref(db, "chats");
 
   const [isListReady, setIsListReady] = useState(false); // Flag to track if the list is mounted
+  const [usersData, setUsersData] = useState<any>({}); // Store user data (username, profile picture)
 
   const currentUser = auth.currentUser; // Get the current user from Firebase Auth
-  const email = currentUser?.email; // Get the email from the current user
-  
+  const uid = currentUser?.uid; // Get the UID from the current user
+  const MORE_ICON = Platform.OS === 'ios' ? 'dots-horizontal' : 'dots-vertical';
+
   const onSubmit = async (data: Chat) => {
     setLoading(true);
     try {
-      // Push the message along with the username and timestamp
-      await push(chatsRef, { ...data, email, timestamp: Date.now() });
+      // Push the message along with the UID and timestamp
+      await push(chatsRef, { ...data, uid, timestamp: Date.now() });
       console.log("Message sent:", data.content);
       reset(); // Clear the input after sending
     } catch (error) {
@@ -56,31 +62,53 @@ export default function HomeScreen(props: any) {
     }
   };
 
+  // Fetch user data (e.g., username, profile picture)
+  const fetchUsersData = async () => {
+    const usersRef = ref(db, "users"); // Assuming your users are stored in "users" node
+    try {
+      const snapshot = await get(usersRef);
+      if (snapshot.exists()) {
+        const usersData = snapshot.val();
+        setUsersData(usersData); // Populate usersData state with user data
+      } else {
+        console.log("No users data found");
+      }
+    } catch (error) {
+      console.error("Error fetching users data: ", error);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onValue(chatsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const chatData: Chat[] = Object.values(data).sort(
-          (a, b) => a.timestamp - b.timestamp
-        );
-        setChatList(chatData || [{}]);
+        const chatData: Chat[] = Object.values(data)
+          .map((item: any) => ({
+            content: item.content,
+            uid: item.uid,
+            timestamp: item.timestamp,
+          }))
+          .sort((a, b) => a.timestamp - b.timestamp);
+        setChatList(chatData || []);
+
+        fetchUsersData(); // Fetch users data when chats are loaded
       } else {
         console.log("No data available.");
         setChatList([]);
       }
     });
+
     return () => unsubscribe();
   }, []);
 
   useLayoutEffect(() => {
-    if (isListReady && flashListRef.current) {
+    if (isListReady && flashListRef?.current) {
       setTimeout(() => {
         flashListRef?.current?.scrollToEnd({ animated: true });
-      }, 1000);
+      },1000);
     }
   }, [chatList, isListReady]);
 
-  // onLayout callback to confirm list is mounted
   const onListLayout = () => {
     if (!isListReady) {
       setIsListReady(true); // Set flag to true after list is mounted and measured
@@ -115,26 +143,59 @@ export default function HomeScreen(props: any) {
           style={styles.backButton}
         />
         <Text style={styles.headerText}>WhatsChat</Text>
+        <Menu
+          visible={menuVisible}
+          onDismiss={closeMenu}
+          anchor={<Appbar.Action icon="cog" onPress={openMenu} color="white" />}>
+          <Menu.Item onPress={() => { router.push("/profile"); closeMenu(); }} leadingIcon="cog" title="Profile" />
+          <Menu.Item onPress={showDialog} leadingIcon="book" title="About" />
+        </Menu>
       </View>
 
       <FlashList
         ref={flashListRef}
         data={chatList}
         estimatedItemSize={56}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.chatItem,
-              item?.email === email ? styles.selfChat : styles.otherChat,
-            ]}
-          >
-            {/* Display the username if it's not the current user */}
-            {item?.email !== email && (
-              <Text style={styles.username}>{item?.email}</Text>
-            )}
-            <Text style={styles.chatText}>{item?.content}</Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const user = usersData[item?.uid]; // Get user data based on the uid
+          return (
+            <><View>
+              {/* Display the profile picture */}
+              {user && (
+                <Image
+                  source={{
+                    uri: user?.profilePicture || 'https://firebasestorage.googleapis.com/v0/b/chatapp-a68fe.firebasestorage.app/o/profile_pictures%2F1QIy8FuQAihHkYZ8AqsCnUsWEXt2%2F76f0ef32-4331-4d13-b167-811853cad689.png?alt=media&token=8f60af5e-2185-44ba-88bc-3967ed990e3f', // Fallback to default image URL
+                  }}
+                  style={[
+                    styles.profilePicture,
+                    item?.uid === uid ? styles.selfProfile : styles.otherProfile,
+                  ]} />
+              )}
+            </View><View
+              style={[
+                styles.chatItem,
+                item?.uid === uid ? styles.selfChat : styles.otherChat,
+              ]}
+            >
+
+                {/* Username */}
+                <Text
+                  style={[
+                    item?.uid === uid ? styles.selfusername : styles.otherusername,
+                  ]}
+                >
+                  {user?.username || 'please go to profile insert image and name'}
+                </Text>
+
+                {/* Chat message */}
+                <Text style={styles.chatText}>
+                  {item?.content || 'No message content'}
+                </Text>
+              </View></>
+
+          );
+        }}
+
         ListEmptyComponent={
           <View style={{ marginTop: 20 }}>
             <Text style={{ color: "gray", margin: 10 }}>
@@ -186,22 +247,22 @@ const styles = StyleSheet.create({
     height: 60,
     width: Dimensions.get("screen").width,
     backgroundColor: "#0000FF",
-    flexDirection: "row", // Align items horizontally
-    alignItems: "center", // Vertically center the items
-    paddingHorizontal: 10, // Add some horizontal padding for spacing
-    position: "relative", // Required to position the back button
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    position: "relative",
   },
 
   headerText: {
     fontSize: 24,
     margin: 10,
     color: "#FFFFFF",
-    flex: 1, // Take up remaining space
-    textAlign: "left", // Center the text horizontally
+    flex: 1,
+    textAlign: "left",
   },
 
   backButton: {
-    paddingRight: 20, // Position the button absolutely
+    paddingRight: 20,
   },
 
   inputContainer: {
@@ -229,28 +290,34 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 15,
     maxWidth: "80%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2,
   },
   selfChat: {
-    backgroundColor: "#d1f7d1",
-    alignSelf: "flex-start",
-  },
-  otherChat: {
-    backgroundColor: "#e1ffc7",
+    backgroundColor: "#c6ffbf",
     alignSelf: "flex-end",
   },
-  username: {
-    fontWeight: "bold",
-    color: "#333",
+  otherChat: {
+    backgroundColor: "#c6ffbf",
+    alignSelf: "flex-start",
+  },
+  userInfo: {
+    flexDirection: "row",
+
+    alignItems: "center",
     marginBottom: 5,
-    fontSize: 14,
-    marginTop: 5,
-    backgroundColor: "transparent",
-    borderRadius: 0,
+  },
+  profilePicture: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  selfusername: {
+    fontWeight: "bold",
+    textAlign: "right",
+  },
+  otherusername: {
+    fontWeight: "bold",
+    textAlign: "left",
   },
   chatText: {
     fontSize: 16,
@@ -258,5 +325,14 @@ const styles = StyleSheet.create({
   error: {
     color: "red",
     fontSize: 12,
+  },
+  selfProfile: {
+    marginRight: 10,
+    alignSelf: "flex-end",
+  },
+  
+  otherProfile: {
+    marginLeft: 10,
+    alignSelf: "flex-start",
   },
 });

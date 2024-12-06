@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from "react-native";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { app } from "../firebaseConfig"; // Adjust the import according to your firebase config file path
+import { app, db } from "../firebaseConfig"; // Adjust the import according to your firebase config file path
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { push, ref } from "firebase/database";
 
 interface Signup {
   email: string;
+  username: string;
   password: string;
 }
 
@@ -15,17 +17,50 @@ export default function SignupScreen() {
   const { control, handleSubmit, reset, formState: { errors } } = useForm<Signup>();
   const [loading, setLoading] = useState(false);
 
+  const userRef = ref(db, "users");
+
+  // Function to create a new user entry in the database
+  const CreateUserTable = async (data: Signup) => {
+    setLoading(true);
+    try {
+      const auth = getAuth(app);
+      const currentUser = auth.currentUser; // Get the current logged-in user
+
+      // Ensure the user is authenticated before proceeding
+      if (currentUser) {
+        // Push the user data to Firebase Realtime Database under the "users" node
+        const profilePictureURL = "https://firebasestorage.googleapis.com/v0/b/chatapp-a68fe.firebasestorage.app/o/profile_pictures%2F1QIy8FuQAihHkYZ8AqsCnUsWEXt2%2F76f0ef32-4331-4d13-b167-811853cad689.png?alt=media&token=8f60af5e-2185-44ba-88bc-3967ed990e3f";
+        await push(userRef, {
+          username: data.username,
+          email: data.email,
+          userId: currentUser.uid,
+          profilePicture: profilePictureURL,  
+        });
+        console.log("User created in table:", data.email);
+      } else {
+        throw new Error("User not authenticated");
+      }
+    } catch (error) {
+      console.error("Error creating user table:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle form submission
   const onSubmit = async (data: Signup) => {
     const auth = getAuth(app);
     setLoading(true);
-    
-
     try {
       // Use Firebase to create a user with email and password
-      await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      
+      // Call CreateUserTable after successful user creation
+      await CreateUserTable(data);
+
       Alert.alert("Success", "Account created successfully!");
-      reset();
-      router.push("/");
+      reset();  // Clear the form
+      router.push("/");  // Redirect to home or another page after successful signup
     } catch (error: any) {
       // Firebase error handling
       if (error.code === 'auth/email-already-in-use') {
@@ -71,6 +106,24 @@ export default function SignupScreen() {
           )}
         />
         {errors.email && <Text style={styles.error}>{errors.email.message}</Text>}
+
+        <Controller
+          control={control}
+          name="username"
+          rules={{
+            required: "Username is required",
+          }}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={[styles.input, errors.username && styles.errorInput]}
+              placeholder="Username"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              value={value}
+            />
+          )}
+        />
+        {errors.username && <Text style={styles.error}>{errors.username.message}</Text>}
 
         <Controller
           control={control}
