@@ -104,6 +104,7 @@ export default function HomeScreen(props: any) {
   useLayoutEffect(() => {
     if (isListReady && flashListRef?.current) {
       setTimeout(() => {
+        if (chatList)
         flashListRef?.current?.scrollToEnd({ animated: true });
       },1000);
     }
@@ -155,6 +156,7 @@ export default function HomeScreen(props: any) {
       <FlashList
         ref={flashListRef}
         data={chatList}
+        
         estimatedItemSize={56}
         renderItem={({ item }) => {
           const user = usersData[item?.uid]; // Get user data based on the uid
